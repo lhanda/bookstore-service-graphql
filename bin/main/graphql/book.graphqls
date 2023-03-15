@@ -1,0 +1,8 @@
+type Book {
+    isbn: ID!
+    title: String
+    authors: [Author]
+    year: Int
+    price: Float
+    genre: String
+}

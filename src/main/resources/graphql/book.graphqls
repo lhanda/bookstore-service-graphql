@@ -2,7 +2,7 @@ type Book {
     isbn: ID!
     title: String
     authors: [Author]
-    year: Int
+    yearOfPublish: Int
     price: Float
     genre: String
 }

@@ -10,16 +10,34 @@ To run:
         query {
             findByTitle(title: "Book 5") {
                 title
-                year
+                yearOfPublish
                 price
                 genre
+                isbn
+                authors {
+                    id
+                    name
+                    birthday
+                    book {
+                        title
+                    }
+                }
             }
 
             findByAuthorsName(authorName: "Peter") {
                 title
-                year
+                yearOfPublish
                 price
                 genre
+                isbn
+                authors {
+                    id
+                    name
+                    birthday
+                    book {
+                        title
+                    }
+                }
             }
         }
 

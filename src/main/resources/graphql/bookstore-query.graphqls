@@ -1,6 +1,9 @@
 type Query {
+    findAllBooks: [Book]
     findByAuthorsName(authorName: String): Book
     findByTitle(title: String): Book
+    findAllAuthors: [Author]
+    findByBookTitle(bookTitle: String): Author
 }
 
 

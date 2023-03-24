@@ -1,0 +1,8 @@
+type Mutation {
+    createBook(input: BookInput!): Book
+    updateBook(input: BookInput!): Book
+    deleteBook(input: BookInput!): Boolean
+    createAuthor(input: AuthorInput!): Author
+    updateAuthor(input: AuthorInput!): Author
+    deleteAuthor(input: AuthorInput!): Boolean
+}

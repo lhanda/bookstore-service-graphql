@@ -4,3 +4,10 @@ type Author {
     birthday: Date
     book: Book
 }
+
+input AuthorInput {
+    clientMutationId: String
+    name: String
+    birthday: Date
+    bookIsbn: String
+}

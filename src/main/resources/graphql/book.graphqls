@@ -6,3 +6,11 @@ type Book {
     price: Float
     genre: String
 }
+
+input BookInput {
+    clientMutationId: String!
+    title: String
+    yearOfPublish: Int
+    price: Float
+    genre: String
+}

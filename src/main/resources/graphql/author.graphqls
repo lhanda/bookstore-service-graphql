@@ -11,3 +11,8 @@ input AuthorInput {
     birthday: Date
     bookIsbn: String
 }
+
+type AuthorPayLoad {
+    author: Author
+    dataOperation: DataOperation
+}

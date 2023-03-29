@@ -27,6 +27,8 @@ dependencies {
 	//implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-graphql'
+	implementation 'org.springframework.boot:spring-boot-starter-websocket'
+	implementation 'com.graphql-java:java-dataloader:3.2.0'
 	//implementation 'org.springframework.boot:spring-boot-starter-rsocket'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'

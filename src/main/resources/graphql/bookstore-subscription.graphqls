@@ -1,0 +1,4 @@
+type Subscription {
+    notifyBookChange: BookPayLoad!
+    notifyAuthorChange: AuthorPayLoad!
+}

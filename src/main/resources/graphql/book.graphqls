@@ -14,3 +14,8 @@ input BookInput {
     price: Float
     genre: String
 }
+
+type BookPayLoad {
+    book: Book
+    dataOperation: DataOperation
+}

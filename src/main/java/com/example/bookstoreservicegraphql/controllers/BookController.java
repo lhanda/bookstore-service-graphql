@@ -3,16 +3,22 @@ package com.example.bookstoreservicegraphql.controllers;
 import com.example.bookstoreservicegraphql.data.models.Author;
 import com.example.bookstoreservicegraphql.data.models.Book;
 import com.example.bookstoreservicegraphql.data.models.BookInput;
+import com.example.bookstoreservicegraphql.data.models.BookPayLoad;
+import com.example.bookstoreservicegraphql.data.models.DataOperation;
 import com.example.bookstoreservicegraphql.data.repositories.interfaces.IAuthorRepository;
 import com.example.bookstoreservicegraphql.data.repositories.interfaces.IBookRepository;
-import java.util.List;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
+import org.springframework.graphql.data.method.annotation.SubscriptionMapping;
 import org.springframework.stereotype.Controller;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
+import reactor.util.concurrent.Queues;
 
 @Slf4j
 @Controller
@@ -23,6 +29,13 @@ public class BookController {
 
   @Autowired
   private IAuthorRepository authorRepository;
+
+  private Sinks.Many<BookPayLoad> bookPayLoadSink = Sinks
+    .many()
+    .multicast()
+    .onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false);
+
+  private Flux<BookPayLoad> bookPayLoadFlux = this.bookPayLoadSink.asFlux();
 
   @QueryMapping
   public Iterable<Book> findAllBooks() {
@@ -49,7 +62,15 @@ public class BookController {
       .price(input.getPrice())
       .genre(input.getGenre())
       .build();
-    return this.bookRepository.save(newBook);
+    this.bookRepository.save(newBook);
+    this.bookPayLoadSink.tryEmitNext(
+        BookPayLoad
+          .builder()
+          .book(newBook)
+          .dataOperation(DataOperation.CREATED)
+          .build()
+      );
+    return newBook;
   }
 
   @MutationMapping
@@ -62,7 +83,15 @@ public class BookController {
       originalBook.setYearOfPublish(input.getYearOfPublish());
       originalBook.setPrice(input.getPrice());
       originalBook.setGenre(input.getGenre());
-      return this.bookRepository.save(originalBook);
+      this.bookRepository.save(originalBook);
+      this.bookPayLoadSink.tryEmitNext(
+          BookPayLoad
+            .builder()
+            .book(originalBook)
+            .dataOperation(DataOperation.UPDATED)
+            .build()
+        );
+      return originalBook;
     } else {
       return null;
     }
@@ -75,11 +104,21 @@ public class BookController {
       Optional<Book> bookFound =
         this.bookRepository.findById(input.getClientMutationId());
       if (bookFound.isPresent()) {
+        Book bookToBeDeleted = bookFound.get();
         Author author =
-          this.authorRepository.findByBookTitle(bookFound.get().getTitle());
-        author.setBook(null);
-        this.authorRepository.save(author);
-        this.bookRepository.deleteById(input.getClientMutationId());
+          this.authorRepository.findByBookTitle(bookToBeDeleted.getTitle());
+        if (author != null) {
+          author.setBook(null);
+          this.authorRepository.save(author);
+        }
+        this.bookRepository.delete(bookToBeDeleted);
+        this.bookPayLoadSink.tryEmitNext(
+            BookPayLoad
+              .builder()
+              .book(bookToBeDeleted)
+              .dataOperation(DataOperation.DELETED)
+              .build()
+          );
         success = true;
       } else {
         log.error("Book id '{}' not found!", input.getClientMutationId());
@@ -88,5 +127,10 @@ public class BookController {
       log.error("Id is null!", iae.getLocalizedMessage());
     }
     return success;
+  }
+
+  @SubscriptionMapping
+  public Publisher<BookPayLoad> notifyBookChange() {
+    return this.bookPayLoadFlux;
   }
 }

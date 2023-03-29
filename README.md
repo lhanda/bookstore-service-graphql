@@ -5,7 +5,7 @@ To run:
 
 1) Open command prompt at root folder, then run the command 'gradlew bootRun' without quotes
 2) Navigate to http://localhost:8080/graphiql at your browser
-3) Cut and paste the following query to your browser and click 'Play' button:
+3) Copy and paste the following query to your browser and click 'Play' button:
 
         query {
             findAllBooks {
@@ -71,7 +71,7 @@ To run:
             }
         }
 
-4) Cut and paste the following mutation to your browser and click 'Play' button:
+4) Copy and paste the following mutation to your browser and click 'Play' button:
 
         mutation {
             createBook(
@@ -117,6 +117,97 @@ To run:
             }
             deleteAuthor(input: {clientMutationId: "7"})
         }
-5) Cut and paste the following mutation to your browser and click 'Play' button:
+5) Copy and paste the following subscription to your browser and click 'Play' button:
 
+        subscription {
+            notifyBookChange {
+                book {
+                    title
+                    yearOfPublish
+                    price
+                    genre
+                    isbn
+                }
+                dataOperation
+            }
+        }
 
+6) With the previous tab still running at Step 5, open a new tab on your browser, then copy and paste the following book mutations one by one and click 'Play' button: 
+
+        mutation {
+            createBook(
+                input: {clientMutationId: "0000000006", title: "Book 6", yearOfPublish: 2023, price: 18.88, genre: "thriller"}
+            ) {
+                isbn
+                title
+            }
+        }
+
+        mutation {
+            updateBook(
+                input: {
+                    clientMutationId: "0000000006", 
+                    title: "Book 6 2nd Edition", 
+                    yearOfPublish: 2024, 
+                    price: 19.99, 
+                    genre: "thriller"}
+            ) {
+                isbn
+                title
+                yearOfPublish
+                price
+                genre
+            }
+        }
+
+        mutation {
+            deleteBook(input: {clientMutationId: "0000000006"})
+        }
+
+7) Copy and paste the following subscription to your browser and click 'Play' button:
+
+        subscription {
+            notifyAuthorChange {
+                author {
+                    id
+                    name
+                    book {
+                        isbn
+                        title
+                    }
+                }
+                dataOperation
+            }
+        }
+
+8) With the previous tab still running at Step 7, open a new tab on your browser, then copy and paste the following author mutations one by one and click 'Play' button:
+
+        mutation {
+            createAuthor(
+                input: {name: "Henry", birthday: "1988-08-08", bookIsbn: "0000000006"}
+            ) {
+                id
+                name
+                book {
+                    isbn
+                    title
+                }
+            }
+        }
+
+        mutation {
+            updateAuthor(
+                input: {clientMutationId: "7", name: "Henry II", birthday: "1988-08-08", bookIsbn: "0000000005"}
+            ) {
+                id
+                name
+                book {
+                    isbn
+                    title
+                }
+            }
+        }
+
+        mutation {
+            deleteAuthor(input: {clientMutationId: "7"})
+        }

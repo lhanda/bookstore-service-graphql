@@ -4,6 +4,7 @@ import java.util.List;
 import javax.persistence.CascadeType;
 import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
 import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import lombok.AllArgsConstructor;
@@ -26,7 +27,11 @@ public class Book {
   @Column
   private String title;
 
-  @OneToMany(mappedBy = "book", cascade = CascadeType.ALL)
+  @OneToMany(
+    fetch = FetchType.EAGER,
+    mappedBy = "book",
+    cascade = CascadeType.ALL
+  )
   private List<Author> authors;
 
   @Column

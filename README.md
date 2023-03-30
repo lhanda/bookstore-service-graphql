@@ -211,3 +211,9 @@ To run:
         mutation {
             deleteAuthor(input: {clientMutationId: "7"})
         }
+
+9) To test rsocket requests, install RSocket Client CLI (rsc) from https://github.com/making/rsc
+
+10) Open command prompt window, and run the following commands:
+
+        rsc --request --route=graphql --dataMimeType="application/graphql+json" --data {\"query\":\"{findAllBooks{title,yearOfPublish,price,genre,isbn,authors{id,name,birthday,book{title}}}}\"}  --debug tcp://localhost:7000/

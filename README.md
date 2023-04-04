@@ -216,4 +216,4 @@ To run:
 
 10) Open command prompt window, and run the following commands:
 
-        rsc --request --route=graphql --dataMimeType="application/graphql+json" --data {\"query\":\"{findAllBooks{title,yearOfPublish,price,genre,isbn,authors{id,name,birthday,book{title}}}}\"}  --debug tcp://localhost:7000/
+        rsc --request --route=graphql --dataMimeType="application/graphql+json" --data '{\"query\" : \"{findAllBooks{title,yearOfPublish,price,genre,isbn,authors{id,name,birthday,book{title}}}}\"}'  --debug tcp://localhost:7000/

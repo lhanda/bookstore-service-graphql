@@ -8,6 +8,7 @@ import com.example.bookstoreservicegraphql.data.models.DataOperation;
 import com.example.bookstoreservicegraphql.data.repositories.interfaces.IAuthorRepository;
 import com.example.bookstoreservicegraphql.data.repositories.interfaces.IBookRepository;
 import java.util.Optional;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,9 +25,11 @@ import reactor.util.concurrent.Queues;
 @Controller
 public class BookController {
 
+  @Setter
   @Autowired
   private IBookRepository bookRepository;
 
+  @Setter
   @Autowired
   private IAuthorRepository authorRepository;
 
@@ -35,6 +38,7 @@ public class BookController {
     .multicast()
     .onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false);
 
+  @Setter
   private Flux<BookPayLoad> bookPayLoadFlux = this.bookPayLoadSink.asFlux();
 
   @QueryMapping
@@ -62,15 +66,15 @@ public class BookController {
       .price(input.getPrice())
       .genre(input.getGenre())
       .build();
-    this.bookRepository.save(newBook);
+    Book savedBook = this.bookRepository.save(newBook);
     this.bookPayLoadSink.tryEmitNext(
         BookPayLoad
           .builder()
-          .book(newBook)
+          .book(savedBook)
           .dataOperation(DataOperation.CREATED)
           .build()
       );
-    return newBook;
+    return savedBook;
   }
 
   @MutationMapping
@@ -83,15 +87,15 @@ public class BookController {
       originalBook.setYearOfPublish(input.getYearOfPublish());
       originalBook.setPrice(input.getPrice());
       originalBook.setGenre(input.getGenre());
-      this.bookRepository.save(originalBook);
+      Book savedBook = this.bookRepository.save(originalBook);
       this.bookPayLoadSink.tryEmitNext(
           BookPayLoad
             .builder()
-            .book(originalBook)
+            .book(savedBook)
             .dataOperation(DataOperation.UPDATED)
             .build()
         );
-      return originalBook;
+      return savedBook;
     } else {
       return null;
     }

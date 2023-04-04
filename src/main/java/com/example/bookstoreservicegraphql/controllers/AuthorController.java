@@ -8,6 +8,7 @@ import com.example.bookstoreservicegraphql.data.models.DataOperation;
 import com.example.bookstoreservicegraphql.data.repositories.interfaces.IAuthorRepository;
 import com.example.bookstoreservicegraphql.data.repositories.interfaces.IBookRepository;
 import java.util.Optional;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.reactivestreams.Publisher;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,9 +25,11 @@ import reactor.util.concurrent.Queues;
 @Controller
 public class AuthorController {
 
+  @Setter
   @Autowired
   private IAuthorRepository authorRepository;
 
+  @Setter
   @Autowired
   private IBookRepository bookRepository;
 
@@ -35,6 +38,7 @@ public class AuthorController {
     .multicast()
     .onBackpressureBuffer(Queues.SMALL_BUFFER_SIZE, false);
 
+  @Setter
   private Flux<AuthorPayLoad> authorPayLoadFlux =
     this.authorPayLoadSink.asFlux();
 
@@ -60,15 +64,15 @@ public class AuthorController {
     if (bookFound.isPresent()) {
       newAuthor.setBook(bookFound.get());
     }
-    this.authorRepository.save(newAuthor);
+    Author savedAuthor = this.authorRepository.save(newAuthor);
     this.authorPayLoadSink.tryEmitNext(
         AuthorPayLoad
           .builder()
-          .author(newAuthor)
+          .author(savedAuthor)
           .dataOperation(DataOperation.CREATED)
           .build()
       );
-    return newAuthor;
+    return savedAuthor;
   }
 
   @MutationMapping
@@ -86,15 +90,15 @@ public class AuthorController {
       if (bookFound.isPresent()) {
         originalAuthor.setBook(bookFound.get());
       }
-      this.authorRepository.save(originalAuthor);
+      Author savedAuthor = this.authorRepository.save(originalAuthor);
       this.authorPayLoadSink.tryEmitNext(
           AuthorPayLoad
             .builder()
-            .author(originalAuthor)
+            .author(savedAuthor)
             .dataOperation(DataOperation.UPDATED)
             .build()
         );
-      return originalAuthor;
+      return savedAuthor;
     } else {
       return null;
     }

@@ -1,6 +1,0 @@
-type Author {
-    id: ID!
-    name: String
-    birthday: Date
-    book: Book
-}

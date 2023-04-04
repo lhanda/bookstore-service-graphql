@@ -1,7 +1,0 @@
-type Query {
-    findByAuthorsName(authorName: String): Book
-    findByTitle(title: String): Book
-}
-
-
-

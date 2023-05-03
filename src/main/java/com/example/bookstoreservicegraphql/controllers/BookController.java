@@ -1,5 +1,6 @@
 package com.example.bookstoreservicegraphql.controllers;
 
+import com.example.bookstoreservicegraphql.configurations.KafkaTopics;
 import com.example.bookstoreservicegraphql.data.models.Author;
 import com.example.bookstoreservicegraphql.data.models.Book;
 import com.example.bookstoreservicegraphql.data.models.BookInput;
@@ -16,6 +17,7 @@ import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SubscriptionMapping;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Controller;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -32,6 +34,14 @@ public class BookController {
   @Setter
   @Autowired
   private IAuthorRepository authorRepository;
+
+  @Setter
+  @Autowired
+  private KafkaTemplate<String, BookPayLoad> bookPayLoadKafkaTemplate;
+
+  @Setter
+  @Autowired
+  private KafkaTopics kafkaTopics;
 
   private Sinks.Many<BookPayLoad> bookPayLoadSink = Sinks
     .many()
@@ -67,13 +77,12 @@ public class BookController {
       .genre(input.getGenre())
       .build();
     Book savedBook = this.bookRepository.save(newBook);
-    this.bookPayLoadSink.tryEmitNext(
-        BookPayLoad
-          .builder()
-          .book(savedBook)
-          .dataOperation(DataOperation.CREATED)
-          .build()
-      );
+    BookPayLoad bookPayLoad = BookPayLoad
+      .builder()
+      .book(savedBook)
+      .dataOperation(DataOperation.CREATED)
+      .build();
+    this.notifySubscribers(bookPayLoad);
     return savedBook;
   }
 
@@ -81,24 +90,22 @@ public class BookController {
   public Book updateBook(@Argument BookInput input) {
     Optional<Book> bookFound =
       this.bookRepository.findById(input.getClientMutationId());
+    Book savedBook = null;
     if (bookFound.isPresent()) {
       Book originalBook = bookFound.get();
       originalBook.setTitle(input.getTitle());
       originalBook.setYearOfPublish(input.getYearOfPublish());
       originalBook.setPrice(input.getPrice());
       originalBook.setGenre(input.getGenre());
-      Book savedBook = this.bookRepository.save(originalBook);
-      this.bookPayLoadSink.tryEmitNext(
-          BookPayLoad
-            .builder()
-            .book(savedBook)
-            .dataOperation(DataOperation.UPDATED)
-            .build()
-        );
-      return savedBook;
-    } else {
-      return null;
+      savedBook = this.bookRepository.save(originalBook);
+      BookPayLoad bookPayLoad = BookPayLoad
+        .builder()
+        .book(savedBook)
+        .dataOperation(DataOperation.UPDATED)
+        .build();
+      this.notifySubscribers(bookPayLoad);
     }
+    return savedBook;
   }
 
   @MutationMapping
@@ -116,13 +123,12 @@ public class BookController {
           this.authorRepository.save(author);
         }
         this.bookRepository.delete(bookToBeDeleted);
-        this.bookPayLoadSink.tryEmitNext(
-            BookPayLoad
-              .builder()
-              .book(bookToBeDeleted)
-              .dataOperation(DataOperation.DELETED)
-              .build()
-          );
+        BookPayLoad bookPayLoad = BookPayLoad
+          .builder()
+          .book(bookToBeDeleted)
+          .dataOperation(DataOperation.DELETED)
+          .build();
+        this.notifySubscribers(bookPayLoad);
         success = true;
       } else {
         log.error("Book id '{}' not found!", input.getClientMutationId());
@@ -136,5 +142,13 @@ public class BookController {
   @SubscriptionMapping
   public Publisher<BookPayLoad> notifyBookChange() {
     return this.bookPayLoadFlux;
+  }
+
+  private void notifySubscribers(BookPayLoad bookPayLoad) {
+    this.bookPayLoadSink.tryEmitNext(bookPayLoad);
+    this.bookPayLoadKafkaTemplate.send(
+        this.kafkaTopics.getTopics().get("book"),
+        bookPayLoad
+      );
   }
 }

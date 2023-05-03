@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.example.bookstoreservicegraphql.configurations.KafkaTopics;
 import com.example.bookstoreservicegraphql.controllers.BookController;
 import com.example.bookstoreservicegraphql.data.models.Author;
 import com.example.bookstoreservicegraphql.data.models.Book;
@@ -28,8 +29,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.reactivestreams.Publisher;
+import org.springframework.kafka.core.KafkaTemplate;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Sinks;
 import reactor.test.StepVerifier;
 import reactor.test.publisher.TestPublisher;
 
@@ -42,24 +43,35 @@ public class BookControllerTest {
 
   private BookController bookController;
 
+  private TestPublisher<BookPayLoad> testPublisher;
+
+  private Flux<BookPayLoad> bookPayLoadFlux;
+
   @Mock
   private IBookRepository bookRepository;
 
   @Mock
   private IAuthorRepository authorRepository;
 
+  @Mock
+  private KafkaTopics kafkaTopics;
+
+  @Mock
+  private KafkaTemplate<String, BookPayLoad> bookPayLoadKafkaTemplate;
+
   @BeforeEach
   public void setUp() {
     this.autoCloseable = MockitoAnnotations.openMocks(this);
-    Sinks.Many<BookPayLoad> bookPayLoadSink = Sinks
-      .many()
-      .multicast()
-      .onBackpressureBuffer(64, false);
-    Flux<BookPayLoad> bookPayLoadFlux = bookPayLoadSink.asFlux();
     this.bookController = new BookController();
     this.bookController.setAuthorRepository(this.authorRepository);
     this.bookController.setBookRepository(this.bookRepository);
-    this.bookController.setBookPayLoadFlux(bookPayLoadFlux);
+    this.bookController.setKafkaTopics(this.kafkaTopics);
+    this.bookController.setBookPayLoadKafkaTemplate(
+        this.bookPayLoadKafkaTemplate
+      );
+    this.testPublisher = TestPublisher.create();
+    this.bookPayLoadFlux = this.testPublisher.flux();
+    this.bookController.setBookPayLoadFlux(this.bookPayLoadFlux);
   }
 
   @AfterAll
@@ -238,19 +250,16 @@ public class BookControllerTest {
       .book(new Book())
       .dataOperation(DataOperation.UPDATED)
       .build();
-    TestPublisher<BookPayLoad> testPublisher = TestPublisher.create();
-    Flux<BookPayLoad> bookPayLoadFlux = testPublisher.flux();
-    this.bookController.setBookPayLoadFlux(bookPayLoadFlux);
     Publisher<BookPayLoad> actualPublisher =
       this.bookController.notifyBookChange();
-    assertEquals(bookPayLoadFlux, actualPublisher);
+    assertEquals(this.bookPayLoadFlux, actualPublisher);
     StepVerifier
       .create(this.bookController.notifyBookChange())
-      .then(() -> testPublisher.next(expectedBookPayLoad1))
+      .then(() -> this.testPublisher.next(expectedBookPayLoad1))
       .assertNext(authorPayLoad -> authorPayLoad.equals(expectedBookPayLoad1))
-      .then(() -> testPublisher.next(expectedBookPayLoad2))
+      .then(() -> this.testPublisher.next(expectedBookPayLoad2))
       .assertNext(authorPayLoad -> authorPayLoad.equals(expectedBookPayLoad2))
-      .then(testPublisher::complete)
+      .then(this.testPublisher::complete)
       .expectComplete()
       .verify();
   }

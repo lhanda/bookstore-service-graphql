@@ -1,5 +1,6 @@
 package com.example.bookstoreservicegraphql.controllers;
 
+import com.example.bookstoreservicegraphql.configurations.KafkaTopics;
 import com.example.bookstoreservicegraphql.data.models.Author;
 import com.example.bookstoreservicegraphql.data.models.AuthorInput;
 import com.example.bookstoreservicegraphql.data.models.AuthorPayLoad;
@@ -16,6 +17,7 @@ import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SubscriptionMapping;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Controller;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
@@ -32,6 +34,14 @@ public class AuthorController {
   @Setter
   @Autowired
   private IBookRepository bookRepository;
+
+  @Setter
+  @Autowired
+  private KafkaTemplate<String, AuthorPayLoad> authorPayLoadKafkaTemplate;
+
+  @Setter
+  @Autowired
+  private KafkaTopics kafkaTopics;
 
   private Sinks.Many<AuthorPayLoad> authorPayLoadSink = Sinks
     .many()
@@ -65,13 +75,12 @@ public class AuthorController {
       newAuthor.setBook(bookFound.get());
     }
     Author savedAuthor = this.authorRepository.save(newAuthor);
-    this.authorPayLoadSink.tryEmitNext(
-        AuthorPayLoad
-          .builder()
-          .author(savedAuthor)
-          .dataOperation(DataOperation.CREATED)
-          .build()
-      );
+    AuthorPayLoad authorPayLoad = AuthorPayLoad
+      .builder()
+      .author(savedAuthor)
+      .dataOperation(DataOperation.CREATED)
+      .build();
+    this.notifySubscribers(authorPayLoad);
     return savedAuthor;
   }
 
@@ -81,6 +90,7 @@ public class AuthorController {
       this.authorRepository.findById(
           Integer.parseInt(input.getClientMutationId())
         );
+    Author savedAuthor = null;
     if (authorFound.isPresent()) {
       Author originalAuthor = authorFound.get();
       originalAuthor.setName(input.getName());
@@ -90,18 +100,15 @@ public class AuthorController {
       if (bookFound.isPresent()) {
         originalAuthor.setBook(bookFound.get());
       }
-      Author savedAuthor = this.authorRepository.save(originalAuthor);
-      this.authorPayLoadSink.tryEmitNext(
-          AuthorPayLoad
-            .builder()
-            .author(savedAuthor)
-            .dataOperation(DataOperation.UPDATED)
-            .build()
-        );
-      return savedAuthor;
-    } else {
-      return null;
+      savedAuthor = this.authorRepository.save(originalAuthor);
+      AuthorPayLoad authorPayLoad = AuthorPayLoad
+        .builder()
+        .author(savedAuthor)
+        .dataOperation(DataOperation.UPDATED)
+        .build();
+      this.notifySubscribers(authorPayLoad);
     }
+    return savedAuthor;
   }
 
   @MutationMapping
@@ -115,13 +122,12 @@ public class AuthorController {
       if (authorFound.isPresent()) {
         Author authorToBeDeleted = authorFound.get();
         this.authorRepository.delete(authorToBeDeleted);
-        this.authorPayLoadSink.tryEmitNext(
-            AuthorPayLoad
-              .builder()
-              .author(authorToBeDeleted)
-              .dataOperation(DataOperation.DELETED)
-              .build()
-          );
+        AuthorPayLoad authorPayLoad = AuthorPayLoad
+          .builder()
+          .author(authorToBeDeleted)
+          .dataOperation(DataOperation.DELETED)
+          .build();
+        this.notifySubscribers(authorPayLoad);
         success = true;
       } else {
         log.error("Author id '{}' not found!", input.getClientMutationId());
@@ -142,5 +148,13 @@ public class AuthorController {
   @SubscriptionMapping
   public Publisher<AuthorPayLoad> notifyAuthorChange() {
     return this.authorPayLoadFlux;
+  }
+
+  private void notifySubscribers(AuthorPayLoad authorPayLoad) {
+    this.authorPayLoadSink.tryEmitNext(authorPayLoad);
+    this.authorPayLoadKafkaTemplate.send(
+        this.kafkaTopics.getTopics().get("author"),
+        authorPayLoad
+      );
   }
 }

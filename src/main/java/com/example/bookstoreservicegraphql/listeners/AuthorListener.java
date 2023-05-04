@@ -1,4 +1,4 @@
-package com.example.listeners;
+package com.example.bookstoreservicegraphql.listeners;
 
 import com.example.bookstoreservicegraphql.data.models.AuthorPayLoad;
 import lombok.extern.slf4j.Slf4j;
